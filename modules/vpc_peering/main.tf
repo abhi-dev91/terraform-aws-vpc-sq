@@ -1,6 +1,7 @@
 locals {
   requester_route_tables_ids = data.aws_route_tables.requester.ids
   accepter_route_tables_ids  = data.aws_route_tables.accepter.ids
+  enable_cross_account_peering = var.enable_cross_account_peering ? [0] : [] 
 }
 
 provider "aws" {
@@ -11,6 +12,12 @@ provider "aws" {
 provider "aws" {
   alias  = "accepter"
   region = var.accepter_vpc_region
+  dynamic assume_role {
+    for_each = local.enable_cross_account_peering
+    content {
+    role_arn = var.accepter_assume_role
+    }
+  }
 }
 
 data "aws_vpc" "accepter" {
@@ -39,6 +46,7 @@ resource "aws_vpc_peering_connection" "this" {
   peer_region = var.accepter_vpc_region
   auto_accept = false
   provider    = aws.peer
+  peer_owner_id = var.enable_cross_account_peering ? var.accepter_account_id : null
 }
 
 resource "aws_vpc_peering_connection_accepter" "this" {
